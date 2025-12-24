@@ -1,56 +1,78 @@
 # Automatizaciones Transports Pau
 
-Repositorio de flujos de automatización para la empresa. Actualmente incluye el sistema de digitalización de recibos de conductores.
+Sistema de automatización para el procesamiento y extracción de datos de recibos de la flota de Transports Pau.
 
 ## Estructura del repositorio
 
 ```
-├── recibos/                # Configuración y especificaciones de OCR
-│   ├── airparser-campos.md # Campos configurados en Airparser
-│   └── especificaciones-digitalizar-recibos.md
-├── docs/                   # Documentación general
-│   └── recursos.md         # Enlaces a herramientas
-├── AGENTS.md               # Guía para agentes AI
-└── TODO.md                 # Tareas pendientes
+├── recibos/                           # Sistema OCR de recibos
+│   ├── flujo.md                       # Diagrama completo del flujo Make + Airparser
+│   ├── esquemas-tabla.md              # Estructura de tablas (recibos_entrada, recibos)
+│   ├── airparser-campos.md            # Campos configurados en Airparser
+│   ├── instalacion.md                 # Guía de instalación (Google APIs, Apps Script)
+│   ├── especificaciones-digitalizar-recibos.md  # Requisitos del sistema
+│   └── AGENTS.md                      # Guía para agentes AI
+├── docs/
+│   └── recursos.md                    # Enlaces a herramientas (Make, Airparser)
+├── .claude/skills/                    # Skills para Claude Code
+└── AGENTS.md                          # Guía general para agentes AI
 ```
 
 ---
 
-## Flujo: Digitalización de recibos
+## Sistema: Digitalización de recibos
 
-### 1. Configuración inicial (oficina, una sola vez)
+### Resumen del flujo
 
-- Creas cuenta en Aiparser.
-- Creas un "mailbox" de recibos, por ejemplo: `recibos-flota@aiparser.io`.
-- En Make, creas un escenario:
-  - Disparador: "New parsed document" de Aiparser.
-  - Acción 1: guardar los campos (fecha, importe, proveedor, IVA, líneas) en una hoja de cálculo o base de datos.
-  - Acción 2 (opcional): enviar notificación a email interno si falta algún dato o si el importe supera X.
+```
+Conductor               Make.com                    Airparser
+─────────               ────────                    ─────────
+   │                        │                           │
+   │  Envía email           │                           │
+   │  con foto/PDF          │                           │
+   │──────────────────────▶│                           │
+   │                        │  Upload adjunto           │
+   │                        │─────────────────────────▶│
+   │                        │                           │  OCR + LLM
+   │                        │                           │  extrae datos
+   │                        │         Webhook           │
+   │                        │◀─────────────────────────│
+   │                        │                           │
+   │                        │  Guarda en Google Sheets  │
+   │                        │  (recibos_entrada + recibos)
+```
 
-### 2. Uso diario por los conductores
+### Para conductores
 
-- Cada conductor tiene en el móvil un contacto llamado "Enviar recibo gasoil" con el email `recibos-flota@aiparser.io`.
-- Después de repostar o recibir un recibo:
-  - Abre la app de cámara o de correo (en español/catalán).
-  - Hace la foto al recibo.
-  - Pulsa "Compartir > Correo" y lo envía al contacto "Enviar recibo gasoil".
-- No entra nunca en Aiparser, Make ni ve nada en inglés: solo manda un email con foto.
+1. Hacer foto al recibo (gasoil, peaje, lavado, etc.)
+2. Enviar por email a la dirección configurada
+3. Listo. El sistema procesa automáticamente.
 
-### 3. Procesamiento automático
+### Para administración
 
-- Aiparser recibe el email y procesa el adjunto: extrae fecha, total, proveedor y, cuando exista, líneas de detalle (cantidad, precio, concepto).
-- Make detecta que hay un nuevo documento parseado:
-  - Crea una nueva fila en una hoja tipo "Gastos_Flota" con todos los campos.
-  - Puedes añadir reglas sencillas: si el proveedor contiene "Cepsa" pon la categoría "Combustible", etc.
+Los datos se guardan en Google Sheets con:
+- Razón social, fecha, matrícula, importe
+- Categoría (gasoil, peajes, limpieza_vehiculos, otros)
+- Método de pago (empresa o transportista)
+- Flags de revisión automática si faltan datos
 
-### 4. Revisión en oficina
+Ver documentación completa en [`recibos/flujo.md`](recibos/flujo.md).
 
-- Administración abre la hoja de cálculo o vista en tu ERP y ve:
-  - Una fila por recibo, con datos ya limpios.
-  - Opcional: enlace a la imagen original guardada en Google Drive/OneDrive (la puedes subir desde Make).
+---
 
-### 5. Escalado sin mantenimiento técnico
+## Instalación
 
-- Si mañana cambias de gasolinera o de formato de recibo:
-  - Los conductores siguen usando exactamente el mismo flujo (foto → email).
-  - Aiparser adapta el reconocimiento automáticamente sin que tengas que redefinir zonas ni plantillas manuales.
+Ver [`recibos/instalacion.md`](recibos/instalacion.md) para:
+- Configurar Google APIs en Make.com
+- Instalar el Apps Script de auto-revisión
+
+---
+
+## Tecnologías
+
+| Herramienta | Uso |
+|-------------|-----|
+| [Airparser](https://airparser.com) | OCR + extracción con LLM |
+| [Make.com](https://make.com) | Automatización de flujos |
+| Google Sheets | Base de datos de recibos |
+| Google Drive | Backup de imágenes originales |
